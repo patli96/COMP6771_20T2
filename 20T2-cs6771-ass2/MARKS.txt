@@ -1,0 +1,1367 @@
+Session: 20T2
+Assignment: ass2  Submission ID: 5180847
+
+
+Your submission has been marked. + /usr/bin/less -m /import/reed/2/z5180847/cs6771.ass2.mrk
+
+!!section banner
+#######    #     #####    ###    #####  #       #######
+#         ##    #     #  #   #  #     # #    #  #    #
+#        # #    #     # # #   # #     # #    #      #
+ #####     #     #####  #  #  #  #####  #######    #
+      #    #    #     # #   # # #     #      #    #
+#     #    #    #     #  #   #  #     #      #    #
+ #####   #####   #####    ###    #####       #    #
+
+5180847 Li, Patrick                             8543   COMPAS COMPCS
+
+Submissions:-
+
+S 0     Sun Jul 12 23:49:41 2020        5180847 fri12a ass2 0:-20
+S 1     Mon Jul 13 02:08:29 2020        5180847 fri12a ass2 0:-17
+
+Mon Jul 27 13:52:07 2020                ## tabla23.orchestra.cse.unsw.EDU.AU ##
+!!section listing
+Cloning into '/tmp/tmp.fhowJG2e54'...
+ACKNOWLEDGEMENTS.md
+CMakeLists.txt
+LICENSE.md
+README.md
+config
+include
+source
+test
+dos2unix: converting file /tmp/tmp.fhowJG2e54/include/comp6771/euclidean_vector.hpp to Unix format ...
+
+===============================================================================
+-rw-r----- 1 cs6771 cs6771 7642 Jul 27 13:52 /tmp/tmp.fhowJG2e54/include/comp6771/euclidean_vector.hpp
+===============================================================================
+
+     1  #ifndef COMP6771_EUCLIDEAN_VECTOR_HPP
+     2  #define COMP6771_EUCLIDEAN_VECTOR_HPP
+     3
+     4  #include <compare>
+     5  #include <fmt/format.h>
+     6  #include <functional>
+     7  #include <gsl/gsl-lite.hpp>
+     8  #include <list>
+     9  #include <memory>
+    10  #include <ostream>
+    11  #include <range/v3/algorithm.hpp>
+    12  #include <range/v3/iterator.hpp>
+    13  #include <range/v3/view.hpp>
+    14  #include <span>
+    15  #include <stdexcept>
+    16  #include <string>
+    17  #include <string_view>
+    18  #include <vector>
+    19
+    20  namespace comp6771 {
+    21          class euclidean_vector_error : public std::runtime_error {
+    22          public:
+    23                  explicit euclidean_vector_error(std::string const& what) noexcept
+    24                  : std::runtime_error(what) {}
+    25          };
+    26
+    27          class euclidean_vector {
+    28          public:
+    29                  /*********************************************************
+    30                   * All key parts are implemented as the specs required,  *
+    31                   * except the utility function - norm is put in friends  *
+    32                   * to implement the "cache" as required.                 *
+    33                   *********************************************************/
+    34                  // CONSTRUCTORS
+    35                  euclidean_vector();
+    36                  explicit euclidean_vector(int);
+    37                  euclidean_vector(int, double);
+    38                  euclidean_vector(std::vector<double>::const_iterator, std::vector<double>::const_iterator);
+    39                  euclidean_vector(std::initializer_list<double>);
+    40                  euclidean_vector(euclidean_vector const&);
+    41                  euclidean_vector(euclidean_vector&&) noexcept;
+    42
+    43                  // DESTRUCTOR
+    44                  ~euclidean_vector() noexcept = default;
+    45
+    46                  // OPERATIONS
+    47                  auto operator=(euclidean_vector const&) -> euclidean_vector&;
+    48                  auto operator=(euclidean_vector&&) noexcept -> euclidean_vector&;
+    49                  auto operator[](int) -> double&;
+    50                  auto operator[](int) const -> double;
+    51                  auto operator+() const -> euclidean_vector;
+    52                  auto operator-() const -> euclidean_vector;
+    53                  auto operator+=(euclidean_vector const&) -> euclidean_vector&;
+    54                  auto operator-=(euclidean_vector const&) -> euclidean_vector&;
+    55                  auto operator*=(double) -> euclidean_vector&;
+    56                  auto operator/=(double) -> euclidean_vector&;
+    57                  explicit operator std::vector<double>() const;
+    58                  explicit operator std::list<double>() const;
+    59
+    60                  // MEMBER FUNCTIONS
+    61                  [[nodiscard]] auto at(int) const -> double;
+    62                  [[nodiscard]] auto at(int) -> double&;
+    63                  [[nodiscard]] auto dimensions() const -> int;
+    64
+    65                  // FRIENDS
+    66                  // equal
+    67                  friend auto operator==(euclidean_vector const& lhs, euclidean_vector const& rhs) -> bool {
+    68                          if (lhs.dimensions_ != rhs.dimensions_) {
+    69                                  return false;
+    70                          }
+    71                          auto span_lhs =
+    72                             std::span<double>(lhs.magnitudes_.get(), gsl::narrow_cast<std::size_t>(lhs.dimensions_));
+    73                          auto span_rhs =
+    74                             std::span<double>(rhs.magnitudes_.get(), gsl::narrow_cast<std::size_t>(rhs.dimensions_));
+    75                          return ranges::equal(span_lhs, span_rhs);
+    76                  }
+    77                  // not equal
+    78                  friend auto operator!=(euclidean_vector const& lhs, euclidean_vector const& rhs) -> bool {
+    79                          return !(lhs == rhs);
+    80                  }
+    81                  // addition
+    82                  friend auto operator+(euclidean_vector const& lhs, euclidean_vector const& rhs)
+    83                     -> euclidean_vector {
+    84                          if (lhs.dimensions_ != rhs.dimensions_) {
+    85                                  throw euclidean_vector_error(fmt::format("Dimensions of LHS{} and RHS{} do not match",
+    86                                                                           lhs.dimensions_,
+    87                                                                           rhs.dimensions_));
+    88                          }
+    89                          auto result = euclidean_vector(lhs.dimensions_);
+    90                          auto span_lhs =
+    91                             std::span<double>(lhs.magnitudes_.get(), gsl::narrow_cast<std::size_t>(lhs.dimensions_));
+    92                          auto span_rhs =
+    93                             std::span<double>(rhs.magnitudes_.get(), gsl::narrow_cast<std::size_t>(rhs.dimensions_));
+    94                          auto span_result = std::span<double>(result.magnitudes_.get(),
+    95                                                               gsl::narrow_cast<std::size_t>(result.dimensions_));
+    96                          std::transform(span_lhs.begin(),
+    97                                         span_lhs.end(),
+    98                                         span_rhs.begin(),
+    99                                         span_result.begin(),
+   100                                         std::plus<>());
+   101                          return result;
+   102                  }
+   103                  // substraction
+   104                  friend auto operator-(euclidean_vector const& lhs, euclidean_vector const& rhs)
+   105                     -> euclidean_vector {
+   106                          if (lhs.dimensions_ != rhs.dimensions_) {
+   107                                  throw euclidean_vector_error(fmt::format("Dimensions of LHS{} and RHS{} do not match",
+   108                                                                           lhs.dimensions_,
+   109                                                                           rhs.dimensions_));
+   110                          }
+   111                          auto result = euclidean_vector(lhs.dimensions_);
+   112                          auto span_lhs =
+   113                             std::span<double>(lhs.magnitudes_.get(), gsl::narrow_cast<std::size_t>(lhs.dimensions_));
+   114                          auto span_rhs =
+   115                             std::span<double>(rhs.magnitudes_.get(), gsl::narrow_cast<std::size_t>(rhs.dimensions_));
+   116                          auto span_result = std::span<double>(result.magnitudes_.get(),
+   117                                                               gsl::narrow_cast<std::size_t>(result.dimensions_));
+   118                          for (int i = 0; gsl::narrow_cast<std::size_t>(i) < span_lhs.size(); ++i) {
+   119                                  auto size_type_i = gsl::narrow_cast<std::size_t>(i);
+   120                                  span_result[size_type_i] = span_lhs[size_type_i] - span_rhs[size_type_i];
+   121                          }
+   122                          return result;
+   123                  }
+   124                  // multiply
+   125                  friend auto operator*(euclidean_vector const& ev, double num) -> euclidean_vector {
+   126                          auto result = euclidean_vector(ev.dimensions_);
+   127                          auto span =
+   128                             std::span<double>(ev.magnitudes_.get(), gsl::narrow_cast<std::size_t>(ev.dimensions_));
+   129                          auto span_result = std::span<double>(result.magnitudes_.get(),
+   130                                                               gsl::narrow_cast<std::size_t>(result.dimensions_));
+   131                          ranges::transform(span.begin(), span.end(), span_result.begin(), [&num](auto const& c) {
+   132                                  return c * num;
+   133                          });
+   134                          return result;
+   135                  }
+   136                  friend auto operator*(double num, euclidean_vector const& ev) -> euclidean_vector {
+   137                          return ev * num;
+   138                  }
+   139                  // divide
+   140                  friend auto operator/(euclidean_vector const& ev, double num) -> euclidean_vector {
+   141                          if (num == 0) {
+   142                                  throw euclidean_vector_error("Invalid vector division by 0");
+   143                          }
+   144                          auto result = euclidean_vector(ev.dimensions_);
+   145                          auto span =
+   146                             std::span<double>(ev.magnitudes_.get(), gsl::narrow_cast<std::size_t>(ev.dimensions_));
+   147                          auto span_result = std::span<double>(result.magnitudes_.get(),
+   148                                                               gsl::narrow_cast<std::size_t>(result.dimensions_));
+   149                          ranges::transform(span.begin(), span.end(), span_result.begin(), [&num](auto const& c) {
+   150                                  return c / num;
+   151                          });
+   152                          return result;
+   153                  }
+   154                  // output stream
+   155                  friend auto operator<<(std::ostream& os, euclidean_vector const& ev) -> std::ostream& {
+   156                          auto span =
+   157                             std::span<double>(ev.magnitudes_.get(), gsl::narrow_cast<std::size_t>(ev.dimensions_));
+   158                          os << "[" << span[0];
+   159                          for (int i = 1; gsl::narrow_cast<std::size_t>(i) < span.size(); ++i) {
+   160                                  auto size_type_i = gsl::narrow_cast<std::size_t>(i);
+   161                                  os << " " << span[size_type_i];
+   162                          }
+   163                          os << "]";
+   164                          return os;
+   165                  }
+   166
+   167                  // FRIEND UTILITY FUNCTION - norm
+   168                  friend auto euclidean_norm(euclidean_vector const& v) -> double {
+   169                          if (v.dimensions() == 0) {
+   170                                  throw euclidean_vector_error("euclidean_vector with no dimensions does not have a "
+   171                                                               "norm");
+   172                          }
+   173                          if (v.cache_ != 0) {
+   174                                  return v.cache_;
+   175                          }
+   176                          auto to_vector = static_cast<std::vector<double>>(v);
+   177                          auto norm = std::sqrt(
+   178                             std::inner_product(to_vector.begin(), to_vector.end(), to_vector.begin(), 0.0));
+   179                          v.cache_ = norm;
+   180                          return v.cache_;
+   181                  }
+   182
+   183          private:
+   184                  int dimensions_;
+   185                  // NOLINTNEXTLINE(modernize-avoid-c-arrays)
+   186                  std::unique_ptr<double[]> magnitudes_;
+   187                  mutable double cache_; // to store the norm calculated last time
+   188                                         // it will be set to 0 if the vector got modified
+   189          };
+   190
+   191          // UTILITY FUNCTIONS
+   192          auto unit(euclidean_vector const& v) -> euclidean_vector;
+   193          auto dot(euclidean_vector const& x, euclidean_vector const& y) -> double;
+                       ^
++ ================================================================================================= +
++ Should also declare euclidean norm here, as we expected to call it using comp6771::euclidean_norm +
++ (this is the cause of some compile erorrs in tests).                                              +
++ ================================================================================================= +
+   194
+   195  } // namespace comp6771
+   196  #endif // COMP6771_EUCLIDEAN_VECTOR_HPP
+
+dos2unix: converting file /tmp/tmp.fhowJG2e54/source/euclidean_vector.cpp to Unix format ...
+
+===============================================================================
+-rw-r----- 1 cs6771 cs6771 9959 Jul 27 13:52 /tmp/tmp.fhowJG2e54/source/euclidean_vector.cpp
+===============================================================================
+
+     1  // Copyright (c) Christopher Di Bella.
+     2  // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+     3  //
+     4  #include "comp6771/euclidean_vector.hpp"
+     5  #include <algorithm>
+     6  #include <cmath>
+     7  #include <cstddef>
+     8  #include <fmt/format.h>
+     9  #include <functional>
+    10  #include <gsl/gsl-lite.hpp>
+    11  #include <iostream>
+    12  #include <iterator>
+    13  #include <memory>
+    14  #include <numeric>
+    15  #include <range/v3/algorithm.hpp>
+    16  #include <range/v3/iterator.hpp>
+    17  #include <range/v3/numeric.hpp>
+    18  #include <range/v3/view.hpp>
+    19  #include <utility>
+    20
+    21  namespace comp6771 {
+    22
+    23          /**************************** CONSTRUCTORS ****************************/
+    24          // default constructor
+    25          euclidean_vector::euclidean_vector() {
+    26                  cache_ = 0;
+    27                  dimensions_ = 1;
+    28                  // NOLINTNEXTLINE(modernize-avoid-c-arrays)
+    29                  magnitudes_ = std::make_unique<double[]>(gsl::narrow_cast<std::size_t>(1));
+    30                  magnitudes_[0] = 0.0;
+    31          }
+    32
+    33          // single-arg constructor
+    34          euclidean_vector::euclidean_vector(int dimensions)
+    35          : euclidean_vector(dimensions, 0.0) {}
+    36
+    37          euclidean_vector::euclidean_vector(int dimensions, double magnitudes) {
+    38                  cache_ = 0;
+    39                  dimensions_ = dimensions;
+    40                  // NOLINTNEXTLINE(modernize-avoid-c-arrays)
+    41                  magnitudes_ = std::make_unique<double[]>(gsl::narrow_cast<std::size_t>(dimensions_));
+    42                  auto span = std::span<double>(magnitudes_.get(), gsl::narrow_cast<std::size_t>(dimensions_));
+    43                  ranges::fill(span, magnitudes);
+    44          }
+    45
+    46          euclidean_vector::euclidean_vector(std::vector<double>::const_iterator start,
+    47                                             std::vector<double>::const_iterator end) {
+    48                  cache_ = 0;
+    49                  dimensions_ = static_cast<int>(std::distance(start, end));
+    50                  // NOLINTNEXTLINE(modernize-avoid-c-arrays)
+    51                  magnitudes_ = std::make_unique<double[]>(gsl::narrow_cast<std::size_t>(dimensions_));
+    52                  ranges::copy(start, end, magnitudes_.get());
+    53          }
+    54
+    55          euclidean_vector::euclidean_vector(std::initializer_list<double> init_list) {
+    56                  cache_ = 0;
+    57                  dimensions_ = static_cast<int>(init_list.size());
+    58                  // NOLINTNEXTLINE(modernize-avoid-c-arrays)
+    59                  magnitudes_ = std::make_unique<double[]>(init_list.size());
+    60                  ranges::copy(init_list.begin(), init_list.end(), magnitudes_.get());
+    61          }
+    62
+    63          // copy constructor
+    64          euclidean_vector::euclidean_vector(euclidean_vector const& ev) {
+    65                  cache_ = ev.cache_;
+    66                  dimensions_ = ev.dimensions_;
+    67                  // NOLINTNEXTLINE(modernize-avoid-c-arrays)
+    68                  magnitudes_ = std::make_unique<double[]>(gsl::narrow_cast<std::size_t>(dimensions_));
+    69                  for (int i = 0; i < dimensions_; ++i) {
+    70                          auto size_t_i = gsl::narrow_cast<std::size_t>(i);
+    71                          magnitudes_[size_t_i] = ev.magnitudes_[size_t_i];
+    72                  }
+    73          }
+    74
+    75          // move constructor
+    76          euclidean_vector::euclidean_vector(euclidean_vector&& ev) noexcept {
+    77                  cache_ = ev.cache_;
+    78                  dimensions_ = ev.dimensions_;
+    79                  // NOLINTNEXTLINE(modernize-avoid-c-arrays)
+    80                  magnitudes_ = std::make_unique<double[]>(gsl::narrow_cast<std::size_t>(dimensions_));
+    81                  for (int i = 0; i < dimensions_; ++i) {
+    82                          auto size_t_i = gsl::narrow_cast<std::size_t>(i);
+    83                          magnitudes_[size_t_i] = ev.magnitudes_[size_t_i];
+    84                  }
+    85                  std::exchange(ev.dimensions_, 0);
+    86                  std::exchange(ev.magnitudes_, nullptr);
+    87          }
+    88
+                       ^
++ ============================================================================== +
++ Should use member initialiser lists to initialise fields for all constructors. +
++ ============================================================================== +
+    90          // copy assignment
+    91          auto euclidean_vector::operator=(euclidean_vector const& rhs) -> euclidean_vector& {
+    92                  if (this == &rhs) {
+    93                          return *this;
+    94                  }
+    95                  cache_ = rhs.cache_;
+    96                  dimensions_ = rhs.dimensions_;
+    97                  magnitudes_ =
+    98                     // NOLINTNEXTLINE(modernize-avoid-c-arrays)
+    99                     std::make_unique<double[]>(gsl::narrow_cast<std::size_t>(dimensions_));
+   100                  for (int i = 0; i < dimensions_; ++i) {
+   101                          auto size_t_i = gsl::narrow_cast<std::size_t>(i);
+   102                          magnitudes_[size_t_i] = rhs.magnitudes_[size_t_i];
+   103                  }
+   104                  return *this;
+   105          }
+   106
+   107          // move assignment
+   108          auto euclidean_vector::operator=(euclidean_vector&& rhs) noexcept -> euclidean_vector& {
+   109                  cache_ = rhs.cache_;
+   110                  dimensions_ = rhs.dimensions_;
+   111                  magnitudes_ =
+   112                     // NOLINTNEXTLINE(modernize-avoid-c-arrays)
+   113                     std::make_unique<double[]>(gsl::narrow_cast<std::size_t>(dimensions_));
+   114                  for (int i = 0; i < dimensions_; ++i) {
+   115                          auto size_t_i = gsl::narrow_cast<std::size_t>(i);
+   116                          magnitudes_[size_t_i] = rhs.magnitudes_[size_t_i];
+   117                  }
+   118                  rhs.cache_ = 0;
+   119                  rhs.dimensions_ = 0;
+   120                  rhs.magnitudes_ = nullptr;
+   121                  return *this;
+   122          }
+   123
+   124          // subscript
+   125          auto euclidean_vector::operator[](int i) -> double& {
+   126                  assert((i >= 0) && (i < this->dimensions_));
+   127                  cache_ = 0; // reset cacahe_ to 0, since the norm would change.
+   128                  return magnitudes_[gsl::narrow_cast<std::size_t>(i)];
+   129          }
+   130          auto euclidean_vector::operator[](int i) const -> double {
+   131                  assert((i >= 0) && (i < this->dimensions_));
+   132                  return this->magnitudes_[gsl::narrow_cast<std::size_t>(i)];
+   133          }
+   134
+   135          // unary plus
+   136          auto euclidean_vector::operator+() const -> euclidean_vector {
+   137                  return *this;
+   138          }
+   139
+   140          // negation
+   141          auto euclidean_vector::operator-() const -> euclidean_vector {
+   142                  auto span = std::span<double>(magnitudes_.get(), gsl::narrow_cast<std::size_t>(dimensions_));
+   143                  std::transform(span.begin(), span.end(), span.begin(), std::negate<>());
+   144                  return *this;
+   145          }
+   146
+   147          // compound addition
+   148          auto euclidean_vector::operator+=(euclidean_vector const& rhs) -> euclidean_vector& {
+   149                  if (dimensions_ != rhs.dimensions_) {
+   150                          throw euclidean_vector_error(
+   151                             fmt::format("Dimensions of LHS{} and RHS{} do not match", dimensions_, rhs.dimensions_));
+   152                  }
+   153                  cache_ = 0; // reset cacahe_ to 0, since the norm would change.
+   154                  auto span_lhs =
+   155                     std::span<double>(magnitudes_.get(), gsl::narrow_cast<std::size_t>(dimensions_));
+   156                  auto span_rhs =
+   157                     std::span<double>(rhs.magnitudes_.get(), gsl::narrow_cast<std::size_t>(rhs.dimensions_));
+   158                  std::transform(span_lhs.begin(),
+   159                                 span_lhs.end(),
+   160                                 span_rhs.begin(),
+   161                                 span_lhs.begin(),
+   162                                 std::plus<>());
+   163                  return *this;
+   164          }
+   165
+   166          // compound substraction
+   167          auto euclidean_vector::operator-=(euclidean_vector const& rhs) -> euclidean_vector& {
+   168                  if (dimensions_ != rhs.dimensions_) {
+   169                          throw euclidean_vector_error(
+   170                             fmt::format("Dimensions of LHS{} and RHS{} do not match", dimensions_, rhs.dimensions_));
+   171                  }
+   172                  cache_ = 0; // reset cacahe_ to 0, since the norm would change.
+   173                  auto span_lhs =
+   174                     std::span<double>(magnitudes_.get(), gsl::narrow_cast<std::size_t>(dimensions_));
+   175                  auto span_rhs =
+   176                     std::span<double>(rhs.magnitudes_.get(), gsl::narrow_cast<std::size_t>(rhs.dimensions_));
+   177                  for (int i = 0; gsl::narrow_cast<std::size_t>(i) < span_lhs.size(); ++i) {
+   178                          auto size_type_i = gsl::narrow_cast<std::size_t>(i);
+   179                          span_lhs[size_type_i] = span_lhs[size_type_i] - span_rhs[size_type_i];
+   180                  }
+   181                  return *this;
+   182          }
+   183
+   184          // compound multiplication
+   185          auto euclidean_vector::operator*=(double num) -> euclidean_vector& {
+   186                  cache_ = 0; // reset cacahe_ to 0, since the norm would change.
+   187                  auto span = std::span<double>(magnitudes_.get(), gsl::narrow_cast<std::size_t>(dimensions_));
+   188                  ranges::transform(span.begin(), span.end(), span.begin(), [&num](auto const& c) {
+   189                          return c * num;
+   190                  });
+   191                  return *this;
+   192          }
+   193
+   194          // compound division
+   195          auto euclidean_vector::operator/=(double num) -> euclidean_vector& {
+   196                  if (num == 0) {
+   197                          throw euclidean_vector_error("Invalid vector division by 0");
+   198                  }
+   199                  cache_ = 0; // reset cacahe_ to 0, since the norm would change.
+   200                  auto span = std::span<double>(magnitudes_.get(), gsl::narrow_cast<std::size_t>(dimensions_));
+   201                  ranges::transform(span.begin(), span.end(), span.begin(), [&num](auto const& c) {
+   202                          return c / num;
+   203                  });
+   204                  return *this;
+   205          }
+   206
+   207          // vector type conversion
+   208          euclidean_vector::operator std::vector<double>() const {
+   209                  auto span = std::span<double>(magnitudes_.get(), gsl::narrow_cast<std::size_t>(dimensions_));
+   210                  auto to_vector = std::vector<double>{span.begin(), span.end()};
+   211                  return to_vector;
+   212          }
+   213
+   214          // list type conversion
+   215          euclidean_vector::operator std::list<double>() const {
+   216                  auto span = std::span<double>(magnitudes_.get(), gsl::narrow_cast<std::size_t>(dimensions_));
+   217                  auto to_list = std::list<double>(span.begin(), span.end());
+   218                  return to_list;
+   219          }
+   220
+   221          /**************************** MEMBER FUNCTIONS ****************************/
+   222          // .at()
+   223          [[nodiscard]] auto euclidean_vector::at(int dimension) const -> double {
+   224                  if ((dimension < 0) || (dimension >= dimensions_)) {
+   225                          throw euclidean_vector_error(
+   226                             fmt::format("Index {} is not valid for this euclidean_vector object", dimension));
+   227                  }
+   228                  return magnitudes_[gsl::narrow_cast<std::size_t>(dimension)];
+   229          }
+   230
+   231          [[nodiscard]] auto euclidean_vector::at(int dimension) -> double& {
+   232                  if ((dimension < 0) || (dimension >= dimensions_)) {
+   233                          throw euclidean_vector_error(
+   234                             fmt::format("Index {} is not valid for this euclidean_vector object", dimension));
+   235                  }
+   236                  cache_ = 0; // reset cacahe_ to 0, since the norm would change.
+   237                  return magnitudes_[gsl::narrow_cast<std::size_t>(dimension)];
+   238          }
+   239
+   240          // .dimensions()
+   241          [[nodiscard]] auto euclidean_vector::dimensions() const -> int {
+   242                  return dimensions_;
+   243          }
+   244
+   245          /**************************** UTILITY FUNCTIONS ****************************/
+   246          // unit
+   247          auto unit(euclidean_vector const& v) -> euclidean_vector {
+   248                  if (v.dimensions() == 0) {
+   249                          throw euclidean_vector_error("euclidean_vector with no dimensions does not have a unit "
+   250                                                       "vector");
+   251                  }
+   252                  if (euclidean_norm(v) == 0) {
+   253                          throw euclidean_vector_error("euclidean_vector with zero euclidean normal does not have a "
+   254                                                       "unit vector");
+   255                  }
+   256                  auto norm = euclidean_norm(v);
+   257                  auto unit_v = v;
+   258                  for (int i = 0; i < v.dimensions(); ++i) {
+   259                          unit_v[i] = v[i] / norm;
+   260                  }
+   261                  return unit_v;
+   262          }
+   263
+   264          // dot
+   265          auto dot(euclidean_vector const& x, euclidean_vector const& y) -> double {
+   266                  if (x.dimensions() != y.dimensions()) {
+   267                          throw euclidean_vector_error(
+   268                             fmt::format("Dimensions of LHS{} and RHS{} do not match", x.dimensions(), y.dimensions()));
+   269                  }
+   270                  auto x_to_vector = static_cast<std::vector<double>>(x);
+   271                  auto y_to_vector = static_cast<std::vector<double>>(y);
+   272                  return std::inner_product(x_to_vector.begin(), x_to_vector.end(), y_to_vector.begin(), 0.0);
+   273          }
+   274
+   275  } // namespace comp6771
+
+dos2unix: converting file /tmp/tmp.fhowJG2e54/test/euclidean_vector/euclidean_vector_test1.cpp to Unix format ...
+
+===============================================================================
+-rw-r----- 1 cs6771 cs6771 463 Jul 27 13:52 /tmp/tmp.fhowJG2e54/test/euclidean_vector/euclidean_vector_test1.cpp
+===============================================================================
+
+     1  #include "comp6771/euclidean_vector.hpp"
+     2
+     3  #include <catch2/catch.hpp>
+     4  #include <fmt/format.h>
+     5  #include <fmt/ostream.h>
+     6  #include <vector>
+     7
+     8  TEST_CASE("basic test") {
+     9          // Please note - this test may not function, it's just here for stubbing purposes
+    10          auto const a1 = comp6771::euclidean_vector(3, 3.0);
+    11          auto const a2 = comp6771::euclidean_vector(3, 3.0);
+    12          auto const a3 = comp6771::euclidean_vector(3, 3.0);
+    13
+    14          CHECK(fmt::format("{}", a1 + a2 + a3) == "[9 9 9]");
+    15  }
+
+dos2unix: converting file /tmp/tmp.fhowJG2e54/test/euclidean_vector/utility_test.cpp to Unix format ...
+
+===============================================================================
+-rw-r----- 1 cs6771 cs6771 1817 Jul 27 13:52 /tmp/tmp.fhowJG2e54/test/euclidean_vector/utility_test.cpp
+===============================================================================
+
+     1  #include "comp6771/euclidean_vector.hpp"
+     2
+     3  #include <catch2/catch.hpp>
+     4  #include <fmt/format.h>
+     5  #include <fmt/ostream.h>
+     6  #include <vector>
+     7
+     8  /********************************************************************
+     9   * UTILITY FUNCTION TEST CASE                                       *
+    10   * This test case is for testing utility functions.                 *
+    11   * Each utility function has its own section.                       *
+    12   * Besides basic norm calculation, the norm test case also test     *
+    13   * the implementation of cache as well.                             *
+    14   ********************************************************************/
+    15  TEST_CASE("utility function test case") {
+    16          auto const a = comp6771::euclidean_vector(4, 2.0);
+    17          auto b = comp6771::euclidean_vector(0, 0);
+    18          auto c = comp6771::euclidean_vector(4, 0);
+    19          auto d = comp6771::euclidean_vector(4, 2.0);
+    20
+    21          SECTION("norm") {
+    22                  auto norm_a = euclidean_norm(a);
+    23                  CHECK(norm_a == 4);
+    24                  CHECK_THROWS_WITH(euclidean_norm(b),
+    25                                    "euclidean_vector with no dimensions does not have a norm");
+    26                  CHECK(euclidean_norm(d * 2) == 8);
+    27                  auto norm_d = euclidean_norm(d);
+    28                  CHECK(norm_d == 4);
+    29          }
+    30
+    31          SECTION("unit") {
+    32                  CHECK(fmt::format("{}", comp6771::unit(a)) == "[0.5 0.5 0.5 0.5]");
+                                                                           ^
++ ========================================================================= +
++ Prefer checks with operator== or explicit checks with operator[] instead. +
++ ========================================================================= +
+    33                  CHECK_THROWS_WITH(comp6771::unit(b),
+    34                                    "euclidean_vector with no dimensions does not have a unit vector");
+    35                  CHECK_THROWS_WITH(comp6771::unit(c),
+    36                                    "euclidean_vector with zero euclidean normal does not have a unit vector");
+    37          }
+    38
+    39          SECTION("dot") {
+    40                  auto const v1 = comp6771::euclidean_vector{1, 2};
+    41                  auto const v2 = comp6771::euclidean_vector{3, 4};
+    42                  CHECK(comp6771::dot(v1, v2) == 11);
+    43                  CHECK_THROWS_WITH(
+    44                     comp6771::dot(a, v1),
+    45                     fmt::format("Dimensions of LHS{} and RHS{} do not match", a.dimensions(), v1.dimensions()));
+    46          }
+    47  }
+dos2unix: converting file /tmp/tmp.fhowJG2e54/test/euclidean_vector/constructor_test.cpp to Unix format ...
+
+===============================================================================
+-rw-r----- 1 cs6771 cs6771 1943 Jul 27 13:52 /tmp/tmp.fhowJG2e54/test/euclidean_vector/constructor_test.cpp
+===============================================================================
+
+     1  #include "comp6771/euclidean_vector.hpp"
+     2
+     3  #include <catch2/catch.hpp>
+     4  #include <fmt/format.h>
+     5  #include <fmt/ostream.h>
+     6  #include <vector>
+     7
+     8  /********************************************************************
+     9   * CONSTRUCTOR TEST CASE                                            *
+    10   * This test case is for testing constructors.                      *
+    11   * Each kind of constructor has its own section.                    *
+    12   ********************************************************************/
+    13  TEST_CASE("constructor test case") {
+    14          SECTION("default constructor") {
+    15                  auto a = comp6771::euclidean_vector();
+    16                  CHECK(fmt::format("{}", a) == "[0]");
+    17                  CHECK(a.dimensions() == 1);
+    18          }
+    19
+    20          SECTION("int-double constructor") {
+    21                  auto a = comp6771::euclidean_vector(2, 4.0);
+    22                  auto x = int{3};
+    23                  auto y = double{3.24};
+    24                  auto b = comp6771::euclidean_vector(x, y);
+    25                  CHECK(fmt::format("{}", a) == "[4 4]");
+    26                  CHECK(fmt::format("{}", b) == "[3.24 3.24 3.24]");
+    27          }
+    28
+    29          SECTION("single-argument constructor") {
+    30                  auto const a = comp6771::euclidean_vector(1);
+    31                  int i{3};
+    32                  auto const b = comp6771::euclidean_vector(i);
+    33                  CHECK(fmt::format("{}", a) == "[0]");
+    34                  CHECK(fmt::format("{}", b) == "[0 0 0]");
+    35          }
+    36
+    37          SECTION("iterator constructor") {
+    38                  std::vector<double> v = {4.5, 6.23, 6.123, 56.2};
+    39                  auto b = comp6771::euclidean_vector(v.begin(), v.end());
+    40                  CHECK(fmt::format("{}", b) == "[4.5 6.23 6.123 56.2]");
+    41          }
+    42
+    43          SECTION("initialiser list constructor") {
+    44                  auto b = comp6771::euclidean_vector{1.0, 2.0, 3.0};
+    45                  CHECK(fmt::format("{}", b) == "[1 2 3]");
+    46          }
+    47
+    48          SECTION("copy constructor") {
+    49                  auto a = comp6771::euclidean_vector{1.0, 2.0, 3.0};
+    50                  auto b = comp6771::euclidean_vector(a);
+    51                  CHECK(fmt::format("{}", a) == "[1 2 3]");
+    52                  CHECK(fmt::format("{}", b) == "[1 2 3]");
+    53          }
+    54
+    55          SECTION("move constructor") {
+    56                  auto a = comp6771::euclidean_vector{1.0, 2.0, 3.0};
+    57                  auto b = comp6771::euclidean_vector(std::move(a));
+    58                  CHECK(fmt::format("{}", b) == "[1 2 3]");
+    59          }
+    60  }
+dos2unix: converting file /tmp/tmp.fhowJG2e54/test/euclidean_vector/friends_test.cpp to Unix format ...
+
+===============================================================================
+-rw-r----- 1 cs6771 cs6771 2226 Jul 27 13:52 /tmp/tmp.fhowJG2e54/test/euclidean_vector/friends_test.cpp
+===============================================================================
+
+     1  #include "comp6771/euclidean_vector.hpp"
+     2
+     3  #include <catch2/catch.hpp>
+     4  #include <fmt/format.h>
+     5  #include <fmt/ostream.h>
+     6  #include <vector>
+     7
+     8  /********************************************************************
+     9   * FRIEND TEST CASE                                                 *
+    10   * This test case is for testing friend functions.                  *
+    11   * Each friend function has its own section.                        *
+    12   ********************************************************************/
+    13  TEST_CASE("friend test case") {
+    14          auto const a = comp6771::euclidean_vector{1, 2};
+    15          auto const b = comp6771::euclidean_vector{1, 2};
+    16          auto const c = comp6771::euclidean_vector{1, 3};
+    17          auto const d = comp6771::euclidean_vector{1};
+    18
+    19          SECTION("equal") {
+    20                  CHECK((a == b) == true);
+    21                  CHECK((a == c) == false);
+    22                  CHECK((a == d) == false);
+    23          }
+    24
+    25          SECTION("not equal") {
+    26                  CHECK((a != b) == false);
+    27                  CHECK((a != c) == true);
+    28                  CHECK((a != d) == true);
+    29          }
+    30
+    31          SECTION("addition") {
+    32                  auto add_a_b = a + b;
+    33                  CHECK(fmt::format("{}", a) == "[1 2]");
+    34                  CHECK(fmt::format("{}", b) == "[1 2]");
+    35                  CHECK(fmt::format("{}", add_a_b) == "[2 4]");
+    36                  CHECK(fmt::format("{}", a + c) == "[2 5]");
+    37                  CHECK(fmt::format("{}", a) == "[1 2]");
+    38                  CHECK(fmt::format("{}", c) == "[1 3]");
+    39                  CHECK_THROWS_WITH(
+    40                     a + d,
+    41                     fmt::format("Dimensions of LHS{} and RHS{} do not match", a.dimensions(), d.dimensions()));
+    42          }
+    43
+    44          SECTION("subtraction") {
+    45                  auto substract_a_b = a - b;
+    46                  CHECK(fmt::format("{}", a) == "[1 2]");
+    47                  CHECK(fmt::format("{}", b) == "[1 2]");
+    48                  CHECK(fmt::format("{}", substract_a_b) == "[0 0]");
+    49                  CHECK(fmt::format("{}", a - c) == "[0 -1]");
+    50                  CHECK(fmt::format("{}", a) == "[1 2]");
+    51                  CHECK(fmt::format("{}", c) == "[1 3]");
+    52                  CHECK_THROWS_WITH(
+    53                     a - d,
+    54                     fmt::format("Dimensions of LHS{} and RHS{} do not match", a.dimensions(), d.dimensions()));
+    55          }
+    56
+    57          SECTION("multiply") {
+    58                  auto m1 = a * 2;
+    59                  auto m2 = 3 * a;
+    60                  CHECK(fmt::format("{}", a) == "[1 2]");
+    61                  CHECK(fmt::format("{}", m1) == "[2 4]");
+    62                  CHECK(fmt::format("{}", m2) == "[3 6]");
+    63          }
+    64
+    65          SECTION("divide") {
+    66                  auto d1 = a / 5;
+    67                  CHECK(fmt::format("{}", a) == "[1 2]");
+    68                  CHECK(fmt::format("{}", d1) == "[0.2 0.4]");
+    69                  CHECK_THROWS_WITH(a / 0.0, "Invalid vector division by 0");
+    70          }
+    71  }
+dos2unix: converting file /tmp/tmp.fhowJG2e54/test/euclidean_vector/operation_test.cpp to Unix format ...
+
+===============================================================================
+-rw-r----- 1 cs6771 cs6771 3177 Jul 27 13:52 /tmp/tmp.fhowJG2e54/test/euclidean_vector/operation_test.cpp
+===============================================================================
+
+     1  #include "comp6771/euclidean_vector.hpp"
+     2
+     3  #include <catch2/catch.hpp>
+     4  #include <fmt/format.h>
+     5  #include <fmt/ostream.h>
+     6  #include <vector>
+     7
+     8  /************************************************************************
+     9   * OPERATION TEST CASE                                                  *
+    10   * This test case is for testing operations.                            *
+    11   * All compound operations are tested in "compound operations" section. *
+    12   * The rest operations are tested in their own sections.                *
+    13   ************************************************************************/
+    14  TEST_CASE("operation test case") {
+    15          SECTION("copy assignment") {
+    16                  auto a = comp6771::euclidean_vector(5, 8.8);
+    17                  auto b = comp6771::euclidean_vector{1.2, 3.4};
+    18                  b = a;
+    19                  CHECK(fmt::format("{}", a) == "[8.8 8.8 8.8 8.8 8.8]");
+    20                  CHECK(fmt::format("{}", b) == "[8.8 8.8 8.8 8.8 8.8]");
+    21          }
+    22
+    23          SECTION("move assignment") {
+    24                  auto b = comp6771::euclidean_vector{1.2, 3.4};
+    25                  auto a = std::move(b);
+    26                  CHECK(fmt::format("{}", a) == "[1.2 3.4]");
+    27          }
+    28
+    29          SECTION("subscript") {
+    30                  std::vector<double> v = {4.5, 6.23, 6.123, 56.2};
+    31                  auto b = comp6771::euclidean_vector(v.begin(), v.end());
+    32                  double a{b[1]};
+    33                  b[2] = 99.99;
+    34                  CHECK(fmt::format("{}", a) == "6.23");
+    35                  CHECK(fmt::format("{}", b) == "[4.5 6.23 99.99 56.2]");
+    36          }
+    37
+    38          SECTION("unary plus") {
+    39                  auto a = comp6771::euclidean_vector(4, 1.5);
+    40                  CHECK(fmt::format("{}", +a) == "[1.5 1.5 1.5 1.5]");
+    41          }
+    42
+    43          SECTION("negation") {
+    44                  auto const a = comp6771::euclidean_vector{-6, 1};
+    45                  auto const b = comp6771::euclidean_vector{6, -1};
+    46                  CHECK(fmt::format("{}", -a) == "[6 -1]");
+    47                  CHECK(fmt::format("{}", -b) == "[-6 1]");
+    48          }
+    49
+    50          SECTION("compound operations") {
+    51                  auto a = comp6771::euclidean_vector{1, 2, 3, 4};
+    52                  auto b = comp6771::euclidean_vector{4, 3, 2, 1};
+    53                  auto c = comp6771::euclidean_vector{1, 1, 1};
+    54
+    55                  SECTION("compound addtion") {
+    56                          a += b;
+    57                          CHECK_THROWS_WITH(
+    58                             a += c,
+    59                             fmt::format("Dimensions of LHS{} and RHS{} do not match", a.dimensions(), c.dimensions()));
+    60                          CHECK(fmt::format("{}", a) == "[5 5 5 5]");
+    61                          CHECK(fmt::format("{}", b) == "[4 3 2 1]");
+    62                  }
+    63
+    64                  SECTION("compound subtraction") {
+    65                          a -= b;
+    66                          CHECK_THROWS_WITH(
+    67                             a -= c,
+    68                             fmt::format("Dimensions of LHS{} and RHS{} do not match", a.dimensions(), c.dimensions()));
+    69                          CHECK(fmt::format("{}", a) == "[-3 -1 1 3]");
+    70                          CHECK(fmt::format("{}", b) == "[4 3 2 1]");
+    71                  }
+    72
+    73                  SECTION("compound multiplication") {
+    74                          double num = 1.2;
+    75                          a *= num;
+    76                          CHECK(fmt::format("{}", a) == "[1.2 2.4 3.6 4.8]");
+    77                          CHECK(fmt::format("{}", a *= double{-0.1}) == "[-0.12 -0.24 -0.36 -0.48]");
+    78                  }
+    79
+    80                  SECTION("compound division") {
+    81                          a /= 2;
+    82                          CHECK(fmt::format("{}", a) == "[0.5 1 1.5 2]");
+    83                          CHECK_THROWS_WITH(a /= 0, "Invalid vector division by 0");
+    84                  }
+    85          }
+    86
+    87          SECTION("vector type conversion") {
+    88                  auto const a = comp6771::euclidean_vector{0.0, 1.0, 2.0};
+    89                  auto const vf = static_cast<std::vector<double>>(a);
+    90                  CHECK(vf == std::vector<double>{0.0, 1.0, 2.0});
+    91          }
+    92
+    93          SECTION("list type conversion") {
+    94                  auto const a = comp6771::euclidean_vector{0.0, 1.0, 2.0};
+    95                  auto const lf = static_cast<std::list<double>>(a);
+    96                  CHECK(lf == std::list<double>{0.0, 1.0, 2.0});
+    97          }
+    98  }
+dos2unix: converting file /tmp/tmp.fhowJG2e54/test/euclidean_vector/member_function_test.cpp to Unix format ...
+
+===============================================================================
+-rw-r----- 1 cs6771 cs6771 905 Jul 27 13:52 /tmp/tmp.fhowJG2e54/test/euclidean_vector/member_function_test.cpp
+===============================================================================
+
+     1  #include "comp6771/euclidean_vector.hpp"
+     2
+     3  #include <catch2/catch.hpp>
+     4  #include <fmt/format.h>
+     5  #include <fmt/ostream.h>
+     6  #include <vector>
+     7
+     8  /********************************************************************
+     9   * MEMBER FUNCTION TEST CASE                                        *
+    10   * This test case is for testing member functions.                  *
+    11   * Each kind of member function has its own section.                *
+    12   ********************************************************************/
+    13  TEST_CASE("member function test case") {
+    14          auto const a = comp6771::euclidean_vector{0.0, 1.0, 2.0};
+    15
+    16          SECTION(".at()") {
+    17                  int const num = 1;
+    18                  auto b = a.at(num);
+    19                  CHECK(b == 1.0);
+    20                  CHECK(a.at(0) == 0.0);
+    21                  CHECK_THROWS_WITH(
+    22                     a.at(3),
+    23                     fmt::format("Index {} is not valid for this euclidean_vector object", a.dimensions()));
+    24          }
+    25
+    26          SECTION(".dimensions()") {
+    27                  auto b = a.dimensions();
+    28                  CHECK(b == 3);
+    29          }
+    30  }
+dos2unix: converting file /tmp/tmp.fhowJG2e54/test/test_main.cpp to Unix format ...
+
+===============================================================================
+-rw-r----- 1 cs6771 cs6771 385 Jul 27 13:52 /tmp/tmp.fhowJG2e54/test/test_main.cpp
+===============================================================================
+
+     1  // We don't own this macro; don't prefix it with `COMP6771_`.
+     2  #define CATCH_CONFIG_MAIN // NOLINT(readability-identifier-naming)
+     3  #include "catch2/catch.hpp"
+     4
+     5  // This file is designed to act as the program entry point. Everything is defined in catch.hpp, so
+     6  // we don't need to worry about doing anything other than indicating our interest to use it via the
+     7  // CATCH_CONFIG_MAIN macro.
+
+!!section tests
+!!section assess
+========================================
+======= Running Linter =================
+========================================
+Cloning into '/tmp/tmp.IHArqCNsCZ'...
+!!specialmark  (Linter)                                 0.75/0.75
+========================================
+======= Running Correctness ============
+========================================
+Cloning into '/tmp/tmp.QvR8fkA80z'...
+Copying automarker
+Copying student headers
+Copying student source
+-- The CXX compiler identification is Clang 11.0.0
+-- Check for working CXX compiler: /usr/bin/clang++-11
+-- Check for working CXX compiler: /usr/bin/clang++-11 -- works
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Found /usr/bin/clang-tidy-11
+-- Found ClangTidy: TRUE
+-- Looking for C++ include pthread.h
+-- Looking for C++ include pthread.h - found
+-- Looking for pthread_create
+-- Looking for pthread_create - not found
+-- Looking for pthread_create in pthreads
+-- Looking for pthread_create in pthreads - not found
+-- Looking for pthread_create in pthread
+-- Looking for pthread_create in pthread - found
+-- Found Threads: TRUE
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /tmp/tmp.gzQAohQVEf/build
+[1/56] Building CXX object test/euclidean_vector/euclidean.vector.members/CMakeFiles/euclidean.vector.members.dimensions.dir/dimensions.cpp.o
+[2/56] Building CXX object test/euclidean_vector/euclidean.vector.construct/CMakeFiles/euclidean.vector.construct.iterator.dir/iterator.cpp.o
+[3/56] Building CXX object test/euclidean_vector/euclidean.vector.construct/CMakeFiles/euclidean.vector.construct.direct.dir/direct.cpp.o
+[4/56] Building CXX object test/euclidean_vector/CMakeFiles/euclidean.vector.integration.dir/integration.cpp.o
+[5/56] Building CXX object source/CMakeFiles/euclidean_vector.dir/euclidean_vector.cpp.o
+[6/56] Linking CXX static library source/libeuclidean_vector.a
+[7/56] Building CXX object test/CMakeFiles/test_main.dir/test_main.cpp.o
+[8/56] Linking CXX static library test/libtest_main.a
+[9/56] Building CXX object test/euclidean_vector/euclidean.vector.members/CMakeFiles/euclidean.vector.members.at.dir/at.cpp.o
+[10/56] Building CXX object test/euclidean_vector/euclidean.vector.ops/CMakeFiles/euclidean.vector.ops.multiplication.dir/multiplication.cpp.o
+[11/56] Building CXX object test/euclidean_vector/euclidean.vector.ops/CMakeFiles/euclidean.vector.ops.division.dir/division.cpp.o
+[12/56] Linking CXX executable test/euclidean_vector/euclidean.vector.integration
+[13/56] Building CXX object test/euclidean_vector/euclidean.vector.ops/CMakeFiles/euclidean.vector.ops.ostream.dir/ostream.cpp.o
+[14/56] Linking CXX executable test/euclidean_vector/euclidean.vector.construct/euclidean.vector.construct.iterator
+[15/56] Linking CXX executable test/euclidean_vector/euclidean.vector.members/euclidean.vector.members.dimensions
+[16/56] Linking CXX executable test/euclidean_vector/euclidean.vector.construct/euclidean.vector.construct.direct
+[17/56] Linking CXX executable test/euclidean_vector/euclidean.vector.members/euclidean.vector.members.at
+[18/56] Linking CXX executable test/euclidean_vector/euclidean.vector.ops/euclidean.vector.ops.multiplication
+[19/56] Linking CXX executable test/euclidean_vector/euclidean.vector.ops/euclidean.vector.ops.division
+[20/56] Linking CXX executable test/euclidean_vector/euclidean.vector.ops/euclidean.vector.ops.ostream
+[21/56] Building CXX object test/euclidean_vector/euclidean.vector.ops/CMakeFiles/euclidean.vector.ops.subtraction.dir/subtraction.cpp.o
+[22/56] Linking CXX executable test/euclidean_vector/euclidean.vector.ops/euclidean.vector.ops.subtraction
+[23/56] Building CXX object test/euclidean_vector/euclidean.vector.member.ops/CMakeFiles/euclidean.vector.member.ops.list_conversion.dir/list_conversion.cpp.o
+[24/56] Building CXX object test/euclidean_vector/euclidean.vector.member.ops/CMakeFiles/euclidean.vector.member.ops.compound_multiplication.dir/compound_multiplication.cpp.o
+[25/56] Building CXX object test/euclidean_vector/euclidean.vector.ops/CMakeFiles/euclidean.vector.ops.equality.dir/equality.cpp.o
+[26/56] Building CXX object test/euclidean_vector/euclidean.vector.member.ops/CMakeFiles/euclidean.vector.member.ops.vector_conversion.dir/vector_conversion.cpp.o
+[27/56] Building CXX object test/euclidean_vector/euclidean.vector.ops/CMakeFiles/euclidean.vector.ops.addition.dir/addition.cpp.o
+[28/56] Linking CXX executable test/euclidean_vector/euclidean.vector.member.ops/euclidean.vector.member.ops.compound_multiplication
+[29/56] Linking CXX executable test/euclidean_vector/euclidean.vector.member.ops/euclidean.vector.member.ops.vector_conversion
+[30/56] Linking CXX executable test/euclidean_vector/euclidean.vector.ops/euclidean.vector.ops.equality
+[31/56] Linking CXX executable test/euclidean_vector/euclidean.vector.member.ops/euclidean.vector.member.ops.list_conversion
+[32/56] Linking CXX executable test/euclidean_vector/euclidean.vector.ops/euclidean.vector.ops.addition
+[33/56] Building CXX object test/euclidean_vector/euclidean.vector.member.ops/CMakeFiles/euclidean.vector.member.ops.compound_subtraction.dir/compound_subtraction.cpp.o
+[34/56] Building CXX object test/euclidean_vector/euclidean.vector.member.ops/CMakeFiles/euclidean.vector.member.ops.subscript.dir/subscript.cpp.o
+[35/56] Linking CXX executable test/euclidean_vector/euclidean.vector.member.ops/euclidean.vector.member.ops.compound_subtraction
+[36/56] Linking CXX executable test/euclidean_vector/euclidean.vector.member.ops/euclidean.vector.member.ops.subscript
+[37/56] Building CXX object test/euclidean_vector/euclidean.vector.member.ops/CMakeFiles/euclidean.vector.member.ops.compound_division.dir/compound_division.cpp.o
+[38/56] Building CXX object test/euclidean_vector/euclidean.vector.member.ops/CMakeFiles/euclidean.vector.member.ops.writable_subscript.dir/writable_subscript.cpp.o
+[39/56] Building CXX object test/euclidean_vector/euclidean.vector.member.ops/CMakeFiles/euclidean.vector.member.ops.compound_addition.dir/compound_addition.cpp.o
+[40/56] Building CXX object test/euclidean_vector/euclidean.vector.special/CMakeFiles/euclidean.vector.special.copy.constructor.dir/copy_constructor.cpp.o
+[41/56] Linking CXX executable test/euclidean_vector/euclidean.vector.member.ops/euclidean.vector.member.ops.compound_division
+[42/56] Linking CXX executable test/euclidean_vector/euclidean.vector.member.ops/euclidean.vector.member.ops.writable_subscript
+[43/56] Linking CXX executable test/euclidean_vector/euclidean.vector.special/euclidean.vector.special.copy.constructor
+[44/56] Linking CXX executable test/euclidean_vector/euclidean.vector.member.ops/euclidean.vector.member.ops.compound_addition
+[45/56] Building CXX object test/euclidean_vector/euclidean.vector.special/CMakeFiles/euclidean.vector.special.copy.assignment.dir/copy_assignment.cpp.o
+[46/56] Building CXX object test/euclidean_vector/euclidean.vector.special/CMakeFiles/euclidean.vector.special.move.assignment.dir/move_assignment.cpp.o
+[47/56] Linking CXX executable test/euclidean_vector/euclidean.vector.special/euclidean.vector.special.copy.assignment
+[48/56] Building CXX object test/euclidean_vector/euclidean.vector.value.ops/CMakeFiles/euclidean.vector.value.ops.euclidean.norm.dir/euclidean_norm.cpp.o
+FAILED: test/euclidean_vector/euclidean.vector.value.ops/CMakeFiles/euclidean.vector.value.ops.euclidean.norm.dir/euclidean_norm.cpp.o
+/usr/bin/cmake -E __run_co_compile --tidy="/usr/bin/clang-tidy-11;-p=/tmp/tmp.gzQAohQVEf/build" --source=/tmp/tmp.gzQAohQVEf/ass2/test/euclidean_vector/euclidean.vector.value.ops/euclidean_norm.cpp -- /usr/bin/clang++-11  -DFMT_HEADER_ONLY=1 -Dgsl_CONFIG_DEFAULTS_VERSION=1 -I/tmp/tmp.gzQAohQVEf/ass2/include -I/tmp/tmp.gzQAohQVEf/ass2/test/euclidean_vector/euclidean.vector.value.ops -isystem /import/kamen/1/cs6771/vcpkg/installed/x64-linux-libcxx/include -fvisibility=hidden -fstack-protector -fdiagnostics-color=always -pedantic -Werror -Wall -Wextra -Wcast-align -Wconversion -Wdouble-promotion -Wnon-virtual-dtor -Wold-style-cast -Woverloaded-virtual -Wshadow -Wsign-conversion -Wsign-promo -Wunused -Wformat=2 -Wodr -Wno-attributes -Wnull-dereference -Wno-unused-command-line-argument -stdlib=libc++ -nostdinc++ -cxx-isystem /usr/lib/llvm-11/include/c++/v1 -fvisibility=hidden -fstack-protector -fdiagnostics-color=always -pedantic -Werror -Wall -Wextra -Wcast-align -Wconversion -Wdouble-promotion -Wnon-virtual-dtor -Wold-style-cast -Woverloaded-virtual -Wshadow -Wsign-conversion -Wsign-promo -Wunused -Wformat=2 -Wodr -Wno-attributes -Wnull-dereference -Wno-unused-command-line-argument -stdlib=libc++ -nostdinc++ -cxx-isystem /usr/lib/llvm-11/include/c++/v1  -fsanitize=cfi -fsanitize=cfi -flto=thin   -std=c++2a -MD -MT test/euclidean_vector/euclidean.vector.value.ops/CMakeFiles/euclidean.vector.value.ops.euclidean.norm.dir/euclidean_norm.cpp.o -MF test/euclidean_vector/euclidean.vector.value.ops/CMakeFiles/euclidean.vector.value.ops.euclidean.norm.dir/euclidean_norm.cpp.o.d -o test/euclidean_vector/euclidean.vector.value.ops/CMakeFiles/euclidean.vector.value.ops.euclidean.norm.dir/euclidean_norm.cpp.o -c /tmp/tmp.gzQAohQVEf/ass2/test/euclidean_vector/euclidean.vector.value.ops/euclidean_norm.cpp
+/tmp/tmp.gzQAohQVEf/ass2/test/euclidean_vector/euclidean.vector.value.ops/euclidean_norm.cpp:9:18: error: no member named 'euclidean_norm' in namespace 'comp6771' [clang-diagnostic-error]
+        CHECK(comp6771::euclidean_norm(v) == 6);
+                        ^
+/import/kamen/1/cs6771/vcpkg/installed/x64-linux-libcxx/include/catch2/catch.hpp:17409:97: note: expanded from macro 'CHECK'
+#define CHECK( ... ) INTERNAL_CATCH_TEST( "CHECK", Catch::ResultDisposition::ContinueOnFailure, __VA_ARGS__ )
+                                                                                                ^
+/import/kamen/1/cs6771/vcpkg/installed/x64-linux-libcxx/include/catch2/catch.hpp:2702:40: note: expanded from macro 'INTERNAL_CATCH_TEST'
+        CATCH_INTERNAL_IGNORE_BUT_WARN(__VA_ARGS__); \
+                                       ^
+/import/kamen/1/cs6771/vcpkg/installed/x64-linux-libcxx/include/catch2/catch.hpp:166:76: note: expanded from macro 'CATCH_INTERNAL_IGNORE_BUT_WARN'
+#    define CATCH_INTERNAL_IGNORE_BUT_WARN(...) (void)__builtin_constant_p(__VA_ARGS__) /* NOLINT(cppcoreguidelines-pro-type-vararg) */
+                                                                           ^
+/tmp/tmp.gzQAohQVEf/ass2/test/euclidean_vector/euclidean.vector.value.ops/euclidean_norm.cpp:15:30: error: no member named 'euclidean_norm' in namespace 'comp6771' [clang-diagnostic-error]
+        CHECK_THROWS_WITH(comp6771::euclidean_norm(zero_dimensional),
+                                    ^
+/import/kamen/1/cs6771/vcpkg/installed/x64-linux-libcxx/include/catch2/catch.hpp:17417:154: note: expanded from macro 'CHECK_THROWS_WITH'
+#define CHECK_THROWS_WITH( expr, matcher ) INTERNAL_CATCH_THROWS_STR_MATCHES( "CHECK_THROWS_WITH", Catch::ResultDisposition::ContinueOnFailure, matcher, expr )
+                                                                                                                                                         ^
+/import/kamen/1/cs6771/vcpkg/installed/x64-linux-libcxx/include/catch2/catch.hpp:2802:35: note: expanded from macro 'INTERNAL_CATCH_THROWS_STR_MATCHES'
+                static_cast<void>(__VA_ARGS__); \
+                                  ^
+48882 warnings and 4 errors generated.
+Error while processing /tmp/tmp.gzQAohQVEf/ass2/test/euclidean_vector/euclidean.vector.value.ops/euclidean_norm.cpp.
+Suppressed 48889 warnings (48881 in non-user code, 7 NOLINT, 1 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+Found compiler error(s).
+[49/56] Building CXX object test/euclidean_vector/euclidean.vector.special/CMakeFiles/euclidean.vector.special.move.constructor.dir/move_constructor.cpp.o
+[50/56] Linking CXX executable test/euclidean_vector/euclidean.vector.special/euclidean.vector.special.move.assignment
+[51/56] Building CXX object test/euclidean_vector/euclidean.vector.value.ops/CMakeFiles/euclidean.vector.value.ops.unit.dir/unit.cpp.o
+[52/56] Building CXX object test/euclidean_vector/euclidean.vector.value.ops/CMakeFiles/euclidean.vector.value.ops.dot.dir/dot.cpp.o
+[53/56] Linking CXX executable test/euclidean_vector/euclidean.vector.special/euclidean.vector.special.move.constructor
+[54/56] Linking CXX executable test/euclidean_vector/euclidean.vector.value.ops/euclidean.vector.value.ops.unit
+[55/56] Linking CXX executable test/euclidean_vector/euclidean.vector.value.ops/euclidean.vector.value.ops.dot
+ninja: build stopped: cannot make progress due to previous errors.
+Running tests... (output won't appear till completion)
+Unable to find executable: euclidean.vector.value.ops.euclidean.norm
+Errors while running CTest
+Test project /tmp/tmp.gzQAohQVEf/build
+      Start  1: test.euclidean.vector.integration
+      Start  2: test.euclidean.vector.construct.direct
+      Start  3: test.euclidean.vector.construct.iterator
+      Start  4: test.euclidean.vector.members.at
+ 1/26 Test  #1: test.euclidean.vector.integration ..........................***Failed    0.00 sec
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+euclidean.vector.integration is a Catch v2.12.1 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+0D vectors are formatted as empty
+-------------------------------------------------------------------------------
+/tmp/tmp.gzQAohQVEf/ass2/test/euclidean_vector/integration.cpp:56
+...............................................................................
+
+/tmp/tmp.gzQAohQVEf/ass2/test/euclidean_vector/integration.cpp:60: FAILED:
+  CHECK( fmt::format("{}", a1 + a2) == "[]" )
+with expansion:
+  "[9.46442e-317]" == "[]"
+
+/tmp/tmp.gzQAohQVEf/ass2/test/euclidean_vector/integration.cpp:61: FAILED:
+  CHECK( fmt::format("{}", a1 - a2) == "[]" )
+with expansion:
+  "[9.46009e-317]" == "[]"
+
+/tmp/tmp.gzQAohQVEf/ass2/test/euclidean_vector/integration.cpp:62: FAILED:
+  CHECK( fmt::format("{}", a1 * 3) == "[]" )
+with expansion:
+  "[9.46009e-317]" == "[]"
+
+===============================================================================
+test cases:  3 |  2 passed | 1 failed
+assertions: 19 | 16 passed | 3 failed
+
+
+      Start  5: test.euclidean.vector.members.dimensions
+ 2/26 Test  #2: test.euclidean.vector.construct.direct .....................   Passed    0.00 sec
+      Start  6: test.euclidean.vector.ops.equality
+ 3/26 Test  #3: test.euclidean.vector.construct.iterator ...................   Passed    0.00 sec
+      Start  7: test.euclidean.vector.ops.addition
+ 4/26 Test  #4: test.euclidean.vector.members.at ...........................   Passed    0.00 sec
+      Start  8: test.euclidean.vector.ops.subtraction
+ 5/26 Test  #5: test.euclidean.vector.members.dimensions ...................   Passed    0.00 sec
+      Start  9: test.euclidean.vector.ops.multiplication
+ 6/26 Test  #6: test.euclidean.vector.ops.equality .........................   Passed    0.00 sec
+      Start 10: test.euclidean.vector.ops.division
+ 7/26 Test  #7: test.euclidean.vector.ops.addition .........................***Failed    0.00 sec
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+euclidean.vector.ops.addition is a Catch v2.12.1 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+operator+ with different vector dimensions
+-------------------------------------------------------------------------------
+/tmp/tmp.gzQAohQVEf/ass2/test/euclidean_vector/euclidean.vector.ops/addition.cpp:35
+...............................................................................
+
+/tmp/tmp.gzQAohQVEf/ass2/test/euclidean_vector/euclidean.vector.ops/addition.cpp:39: FAILED:
+  CHECK_THROWS_WITH( a + b, "Dimensions of LHS(3) and RHS(2) do not match" )
+with expansion:
+  "Dimensions of LHS3 and RHS2 do not match" equals: "Dimensions of LHS(3) and
+  RHS(2) do not match"
+
+===============================================================================
+test cases:  2 |  1 passed | 1 failed
+assertions: 27 | 26 passed | 1 failed
+
+
+      Start 11: test.euclidean.vector.ops.ostream
+ 8/26 Test  #8: test.euclidean.vector.ops.subtraction ......................***Failed    0.00 sec
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+euclidean.vector.ops.subtraction is a Catch v2.12.1 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+operator- with different vector dimensions
+-------------------------------------------------------------------------------
+/tmp/tmp.gzQAohQVEf/ass2/test/euclidean_vector/euclidean.vector.ops/subtraction.cpp:35
+...............................................................................
+
+/tmp/tmp.gzQAohQVEf/ass2/test/euclidean_vector/euclidean.vector.ops/subtraction.cpp:39: FAILED:
+  CHECK_THROWS_WITH( a - b, "Dimensions of LHS(3) and RHS(2) do not match" )
+with expansion:
+  "Dimensions of LHS3 and RHS2 do not match" equals: "Dimensions of LHS(3) and
+  RHS(2) do not match"
+
+===============================================================================
+test cases:  2 |  1 passed | 1 failed
+assertions: 27 | 26 passed | 1 failed
+
+
+      Start 12: test.euclidean.vector.member.ops.subscript
+ 9/26 Test  #9: test.euclidean.vector.ops.multiplication ...................   Passed    0.00 sec
+      Start 13: test.euclidean.vector.member.ops.writable_subscript
+10/26 Test #10: test.euclidean.vector.ops.division .........................   Passed    0.00 sec
+      Start 14: test.euclidean.vector.member.ops.compound_addition
+11/26 Test #11: test.euclidean.vector.ops.ostream ..........................   Passed    0.00 sec
+      Start 15: test.euclidean.vector.member.ops.compound_subtraction
+12/26 Test #12: test.euclidean.vector.member.ops.subscript .................   Passed    0.00 sec
+      Start 16: test.euclidean.vector.member.ops.compound_multiplication
+13/26 Test #13: test.euclidean.vector.member.ops.writable_subscript ........   Passed    0.00 sec
+      Start 17: test.euclidean.vector.member.ops.compound_division
+14/26 Test #14: test.euclidean.vector.member.ops.compound_addition .........   Passed    0.00 sec
+      Start 18: test.euclidean.vector.member.ops.vector_conversion
+15/26 Test #15: test.euclidean.vector.member.ops.compound_subtraction ......***Failed    0.00 sec
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+euclidean.vector.member.ops.compound_subtraction is a Catch v2.12.1 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+operator-= with different vector dimensions
+  x.dimensions() > y.dimensions()
+-------------------------------------------------------------------------------
+/tmp/tmp.gzQAohQVEf/ass2/test/euclidean_vector/euclidean.vector.member.ops/compound_subtraction.cpp:37
+...............................................................................
+
+/tmp/tmp.gzQAohQVEf/ass2/test/euclidean_vector/euclidean.vector.member.ops/compound_subtraction.cpp:38: FAILED:
+  CHECK_THROWS_WITH( a -= b, "Dimensions of LHS(3) and RHS(2) do not match" )
+with expansion:
+  "Dimensions of LHS3 and RHS2 do not match" equals: "Dimensions of LHS(3) and
+  RHS(2) do not match"
+
+-------------------------------------------------------------------------------
+operator-= with different vector dimensions
+  x.dimensions() < y.dimensions()
+-------------------------------------------------------------------------------
+/tmp/tmp.gzQAohQVEf/ass2/test/euclidean_vector/euclidean.vector.member.ops/compound_subtraction.cpp:41
+...............................................................................
+
+/tmp/tmp.gzQAohQVEf/ass2/test/euclidean_vector/euclidean.vector.member.ops/compound_subtraction.cpp:42: FAILED:
+  CHECK_THROWS_WITH( b -= a, "Dimensions of LHS(2) and RHS(3) do not match" )
+with expansion:
+  "Dimensions of LHS2 and RHS3 do not match" equals: "Dimensions of LHS(2) and
+  RHS(3) do not match"
+
+===============================================================================
+test cases: 2 | 1 passed | 1 failed
+assertions: 8 | 6 passed | 2 failed
+
+
+      Start 19: test.euclidean.vector.member.ops.list_conversion
+16/26 Test #16: test.euclidean.vector.member.ops.compound_multiplication ...   Passed    0.00 sec
+      Start 20: test.euclidean.vector.special.move.constructor
+17/26 Test #17: test.euclidean.vector.member.ops.compound_division .........   Passed    0.00 sec
+      Start 21: test.euclidean.vector.special.move.assignment
+18/26 Test #18: test.euclidean.vector.member.ops.vector_conversion .........   Passed    0.00 sec
+      Start 22: test.euclidean.vector.special.copy.constructor
+19/26 Test #19: test.euclidean.vector.member.ops.list_conversion ...........   Passed    0.00 sec
+      Start 23: test.euclidean.vector.special.copy.assignment
+20/26 Test #20: test.euclidean.vector.special.move.constructor .............   Passed    0.00 sec
+      Start 24: test.euclidean.vector.value.ops.dot
+21/26 Test #21: test.euclidean.vector.special.move.assignment ..............   Passed    0.00 sec
+      Start 25: test.euclidean.vector.value.ops.unit
+22/26 Test #22: test.euclidean.vector.special.copy.constructor .............   Passed    0.00 sec
+      Start 26: test.euclidean.vector.value.ops.euclidean.norm
+Could not find executable euclidean.vector.value.ops.euclidean.norm
+Looked in the following places:
+euclidean.vector.value.ops.euclidean.norm
+euclidean.vector.value.ops.euclidean.norm
+Release/euclidean.vector.value.ops.euclidean.norm
+Release/euclidean.vector.value.ops.euclidean.norm
+Debug/euclidean.vector.value.ops.euclidean.norm
+Debug/euclidean.vector.value.ops.euclidean.norm
+MinSizeRel/euclidean.vector.value.ops.euclidean.norm
+MinSizeRel/euclidean.vector.value.ops.euclidean.norm
+RelWithDebInfo/euclidean.vector.value.ops.euclidean.norm
+RelWithDebInfo/euclidean.vector.value.ops.euclidean.norm
+Deployment/euclidean.vector.value.ops.euclidean.norm
+Deployment/euclidean.vector.value.ops.euclidean.norm
+Development/euclidean.vector.value.ops.euclidean.norm
+Development/euclidean.vector.value.ops.euclidean.norm
+23/26 Test #26: test.euclidean.vector.value.ops.euclidean.norm .............***Not Run   0.00 sec
+24/26 Test #23: test.euclidean.vector.special.copy.assignment ..............   Passed    0.00 sec
+25/26 Test #24: test.euclidean.vector.value.ops.dot ........................***Failed    0.00 sec
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+euclidean.vector.value.ops.dot is a Catch v2.12.1 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+Dot product with different vector dimensions
+-------------------------------------------------------------------------------
+/tmp/tmp.gzQAohQVEf/ass2/test/euclidean_vector/euclidean.vector.value.ops/dot.cpp:23
+...............................................................................
+
+/tmp/tmp.gzQAohQVEf/ass2/test/euclidean_vector/euclidean.vector.value.ops/dot.cpp:27: FAILED:
+  CHECK_THROWS_WITH( comp6771::dot(a, b), "Dimensions of LHS(3) and RHS(2) do not match" )
+with expansion:
+  "Dimensions of LHS3 and RHS2 do not match" equals: "Dimensions of LHS(3) and
+  RHS(2) do not match"
+
+/tmp/tmp.gzQAohQVEf/ass2/test/euclidean_vector/euclidean.vector.value.ops/dot.cpp:28: FAILED:
+  CHECK_THROWS_WITH( comp6771::dot(b, a), "Dimensions of LHS(2) and RHS(3) do not match" )
+with expansion:
+  "Dimensions of LHS2 and RHS3 do not match" equals: "Dimensions of LHS(2) and
+  RHS(3) do not match"
+
+===============================================================================
+test cases: 2 | 1 passed | 1 failed
+assertions: 4 | 2 passed | 2 failed
+
+
+26/26 Test #25: test.euclidean.vector.value.ops.unit .......................***Failed    0.00 sec
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+euclidean.vector.value.ops.unit is a Catch v2.12.1 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+calls comp6771::unit on an 0D euclidean_vector
+-------------------------------------------------------------------------------
+/tmp/tmp.gzQAohQVEf/ass2/test/euclidean_vector/euclidean.vector.value.ops/unit.cpp:14
+...............................................................................
+
+/tmp/tmp.gzQAohQVEf/ass2/test/euclidean_vector/euclidean.vector.value.ops/unit.cpp:18: FAILED:
+  CHECK_THROWS_WITH( comp6771::unit(zero_dimensional), "euclidean_vector with no dimensions does not have a unit vector" )
+with expansion:
+  "euclidean_vector with zero euclidean normal does not have a unit vector"
+  equals: "euclidean_vector with no dimensions does not have a unit vector"
+
+===============================================================================
+test cases: 2 | 1 passed | 1 failed
+assertions: 2 | 1 passed | 1 failed
+
+
+
+73% tests passed, 7 tests failed out of 26
+
+Total Test time (real) =   0.03 sec
+
+The following tests FAILED:
+          1 - test.euclidean.vector.integration (Failed)
+          7 - test.euclidean.vector.ops.addition (Failed)
+          8 - test.euclidean.vector.ops.subtraction (Failed)
+         15 - test.euclidean.vector.member.ops.compound_subtraction (Failed)
+         24 - test.euclidean.vector.value.ops.dot (Failed)
+         25 - test.euclidean.vector.value.ops.unit (Failed)
+         26 - test.euclidean.vector.value.ops.euclidean.norm (Not Run)
+
+Marking feedback here
+!!specialmark  (Correctness)                            6.7846153846153845/7.5
+========================================
+======= Running Own Tests ==============
+========================================
+Cloning into '/tmp/tmp.p4SxOjSkez'...
+Output running of own tests here
+-- The CXX compiler identification is Clang 11.0.0
+-- Check for working CXX compiler: /usr/bin/clang++-11
+-- Check for working CXX compiler: /usr/bin/clang++-11 -- works
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Found /usr/bin/clang-tidy-11
+-- Found ClangTidy: TRUE
+-- Looking for C++ include pthread.h
+-- Looking for C++ include pthread.h - found
+-- Looking for pthread_create
+-- Looking for pthread_create - not found
+-- Looking for pthread_create in pthreads
+-- Looking for pthread_create in pthreads - not found
+-- Looking for pthread_create in pthread
+-- Looking for pthread_create in pthread - found
+-- Found Threads: TRUE
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /tmp/tmp.ZlKibEd50m/build-owntests
+[1/16] Building CXX object test/euclidean_vector/CMakeFiles/member_function_test.dir/member_function_test.cpp.o
+[2/16] Building CXX object test/euclidean_vector/CMakeFiles/utility_test.dir/utility_test.cpp.o
+[3/16] Building CXX object test/euclidean_vector/CMakeFiles/friends_test.dir/friends_test.cpp.o
+[4/16] Building CXX object test/euclidean_vector/CMakeFiles/operation_test.dir/operation_test.cpp.o
+[5/16] Building CXX object source/CMakeFiles/euclidean_vector.dir/euclidean_vector.cpp.o
+[6/16] Linking CXX static library source/libeuclidean_vector.a
+[7/16] Building CXX object test/CMakeFiles/test_main.dir/test_main.cpp.o
+[8/16] Linking CXX static library test/libtest_main.a
+[9/16] Building CXX object test/euclidean_vector/CMakeFiles/constructor_test.dir/constructor_test.cpp.o
+[10/16] Linking CXX executable test/euclidean_vector/member_function_test
+[11/16] Linking CXX executable test/euclidean_vector/utility_test
+[12/16] Linking CXX executable test/euclidean_vector/operation_test
+[13/16] Linking CXX executable test/euclidean_vector/friends_test
+[14/16] Building CXX object test/euclidean_vector/CMakeFiles/euclidean_vector_test1.dir/euclidean_vector_test1.cpp.o
+[15/16] Linking CXX executable test/euclidean_vector/constructor_test
+[16/16] Linking CXX executable test/euclidean_vector/euclidean_vector_test1
+Test project /tmp/tmp.ZlKibEd50m/build-owntests
+    Start 1: test.euclidean_vector_test1
+    Start 2: test.constructor_test
+    Start 3: test.operation_test
+    Start 4: test.member_function_test
+1/6 Test #1: test.euclidean_vector_test1 ......   Passed    0.00 sec
+    Start 5: test.friends_test
+2/6 Test #2: test.constructor_test ............   Passed    0.00 sec
+    Start 6: test.utility_test
+3/6 Test #3: test.operation_test ..............   Passed    0.00 sec
+4/6 Test #4: test.member_function_test ........   Passed    0.00 sec
+5/6 Test #5: test.friends_test ................   Passed    0.00 sec
+6/6 Test #6: test.utility_test ................   Passed    0.00 sec
+
+100% tests passed, 0 tests failed out of 6
+
+Total Test time (real) =   0.01 sec
+All own tests compile and run without error!
+!!specialmark  (Running your own tests)                 0/0
+
+!!marktab       **  MARKER'S  ASSESSMENT  **
+
+                            testing   ..  (3.75)        3.75
+
+                            bestpractice  (3)   2.75
+
+!!finalmark     **  FINAL  ASSIGNMENT  MARK:    14.0346/15
+                                       ^
++ ====================================================================================================== +
++ Looks good. See the inline comment regarding needing to use member initialiser lists for constructors. +
++ Also see inline comment regarding declaration of euclidean_norm, which caused some tests to fail.      +
++ ====================================================================================================== +
+
+5180847 Li, Patrick                             8543   COMPAS COMPCS
+
+
+Marked by z5160032 on Wed Jul 29 20:43:45 2020
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Marked by hsmith on Fri Jul 31 19:40:44 2020
