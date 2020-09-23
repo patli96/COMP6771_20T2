@@ -255,14 +255,14 @@ namespace gdwg {
 				                         "they "
 				                         "don't exist in the graph");
 			}
-			if (this->find(src, dst, weight) == this->end()) {
-				return false;
-			}
+			// if (this->find(src, dst, weight) == this->end()) {
+			// 	return false;
+			// }
 			auto src_ptr = nodes_.find(src);
-			for (auto set_iter = edges_[*src_ptr].begin(); set_iter != edges_[*src_ptr].end();
+			for (auto set_iter = edges_.at(*src_ptr).begin(); set_iter != edges_.at(*src_ptr).end();
 			     ++set_iter) {
 				if (*(set_iter->dst) == dst and *(set_iter->weight) == weight) {
-					edges_[*src_ptr].erase(set_iter);
+					edges_.at(*src_ptr).erase(set_iter);
 					return true;
 				}
 			}
@@ -279,7 +279,7 @@ namespace gdwg {
 		}
 
 		/****************************** ACCESSORS ******************************/
-		[[nodiscard]] auto is_node(N const& value) -> bool {
+		[[nodiscard]] auto is_node(N const& value) const -> bool {
 			return nodes_.find(value) != nodes_.end();
 		}
 
@@ -287,22 +287,23 @@ namespace gdwg {
 			return nodes_.empty();
 		}
 
-		[[nodiscard]] auto is_connected(N const& src, N const& dst) -> bool {
+		[[nodiscard]] auto is_connected(N const& src, N const& dst) const -> bool {
 			if (!this->is_node(src) or !this->is_node(dst)) {
 				throw std::runtime_error("Cannot call gdwg::graph<N, E>::is_connected if src or dst "
 				                         "node "
 				                         "don't exist in the graph");
 			}
-			auto set_iter = edges_[*(nodes_.find(src))].begin();
-			while (set_iter != edges_[*(nodes_.find(src))].end()) {
+			auto set_iter = edges_.at(*(nodes_.find(src))).begin();
+			while (set_iter != edges_.at(*(nodes_.find(src))).end()) {
 				if (*(set_iter->dst) == dst) {
 					return true;
 				}
+				set_iter++;
 			}
 			return false;
 		}
 
-		[[nodiscard]] auto nodes() -> std::vector<N> {
+		[[nodiscard]] auto nodes() const -> std::vector<N> {
 			std::vector<N> nodes_vector;
 			std::transform(nodes_.begin(),
 			               nodes_.end(),
@@ -311,7 +312,7 @@ namespace gdwg {
 			return nodes_vector;
 		}
 
-		[[nodiscard]] auto weights(N const& from, N const& to) -> std::vector<E> {
+		[[nodiscard]] auto weights(N const& from, N const& to) const -> std::vector<E> {
 			if (!this->is_node(from) or !this->is_node(to)) {
 				throw std::runtime_error("Cannot call gdwg::graph<N, E>::weights if src or dst node "
 				                         "don't "
@@ -320,8 +321,9 @@ namespace gdwg {
 			if (this->is_connected(from, to)) {
 				auto weights_vector = std::vector<E>{};
 				auto from_ptr = nodes_.find(from);
-				for (auto set_iter = edges_[*from_ptr].begin(); set_iter != edges_[*from_ptr].end();
-				     ++set_iter) {
+				for (auto set_iter = edges_.at(*from_ptr).begin(); set_iter != edges_.at(*from_ptr).end();
+				     ++set_iter)
+				{
 					if (*(set_iter->dst) == to) {
 						weights_vector.push_back(*(set_iter->weight));
 					}
@@ -331,7 +333,7 @@ namespace gdwg {
 			return std::vector<E>{};
 		}
 
-		[[nodiscard]] auto find(N const& src, N const& dst, E const& weight) -> iterator {
+		[[nodiscard]] auto find(N const& src, N const& dst, E const& weight) const -> iterator {
 			auto iter = this->begin();
 			while (iter != this->end()) {
 				if (std::get<0>(*(iter)) == src and std::get<1>(*(iter)) == dst
@@ -343,7 +345,7 @@ namespace gdwg {
 			return iter;
 		}
 
-		[[nodiscard]] auto connections(N const& src) -> std::vector<N> {
+		[[nodiscard]] auto connections(N const& src) const -> std::vector<N> {
 			if (!this->is_node(src)) {
 				throw std::runtime_error("Cannot call gdwg::graph<N, E>::connections if src doesn't "
 				                         "exist "
@@ -352,8 +354,8 @@ namespace gdwg {
 			}
 			std::vector<N> nodes_vector;
 			auto src_ptr = nodes_.find(src);
-			std::transform(edges_[*src_ptr].begin(),
-			               edges_[*src_ptr].end(),
+			std::transform(edges_.at(*src_ptr).begin(),
+			               edges_.at(*src_ptr).end(),
 			               std::back_inserter(nodes_vector),
 			               [](dst_weight_pair dst_pair) { return *(dst_pair.dst); });
 			sort(nodes_vector.begin(), nodes_vector.end());
